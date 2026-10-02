@@ -299,3 +299,29 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# 📈 선형 및 비선형 회귀 계산 프로그램 (Pure Python)
+
+외부 라이브러리(NumPy, SciPy 등)를 사용하지 않고 파이썬 표준 라이브러리만을 이용하여 직접 구현한 회귀 분석 계산기입니다.
+
+## 🔗 상세 보고서 (Notion)
+* 📖 [Notion 알고리즘 상세 설명서 보러가기](https://ancient-engine-e38.notion.site/3ec3bc4108dd817694bad0c3710e6663)
+
+---
+
+## 🚀 주요 기능 및 구현 알고리즘
+1. **선형 회귀 (Linear Regression)**: 최소제곱법(Least Squares Method)을 이용한 1차 직선 피팅
+2. **다항식 회귀 (Polynomial Regression)**: 정규방정식($X^T X c = X^T y$) 및 부분 피벗팅 기반 **가우스 소거법(Gaussian Elimination)** 구현
+3. **지수 회귀 (Exponential Regression)**: $y = a \cdot e^{bx}$ 양변 로그 변환 후 선형회귀 적용
+4. **거듭제곱 회귀 (Power Regression)**: $y = a \cdot x^b$ 양변 로그 변환 후 선형회귀 적용
+5. **결정계수 ($R^2$) 계산**: 모델 적합도 평가 ($1 - \frac{SSE}{SST}$)
+6. **SVG 그래프 자체 생성**: 외부 시각화 라이브러리 없이 `.svg` vector 그래프 파일 직접 생성 및 웹 브라우저 자동 출력
+
+---
+
+## 🛠️ 실행 방법
+
+별도의 패키지 설치 필요 없이 파이썬 기본 환경에서 바로 실행 가능합니다.
+
+```bash
+python main.py

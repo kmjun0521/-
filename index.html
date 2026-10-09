@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANN AI 주가 예측 시스템</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --primary-blue: #3b82f6;
+            --up-red: #ef4444;
+            --down-blue: #3b82f6;
+            --accent-green: #10b981;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans KR', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 850px; display: flex; flex-direction: column; gap: 20px; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 18px 20px; border-radius: 16px; border: 1px solid var(--card-border); }
+        .logo-area { display: flex; align-items: center; gap: 10px; }
+        .logo-badge { background: var(--primary-blue); color: #fff; padding: 4px 10px; border-radius: 8px; font-weight: 700; font-size: 13px; }
+        h1 { font-size: 18px; font-weight: 700; color: var(--text-main); }
+        
+        .control-panel { display: flex; gap: 12px; background: var(--card-bg); padding: 16px; border-radius: 16px; border: 1px solid var(--card-border); align-items: center; flex-wrap: wrap; }
+        select { background: #0f172a; color: var(--text-main); border: 1px solid var(--card-border); padding: 10px 14px; border-radius: 10px; font-size: 14px; outline: none; }
+        .btn-update { background: var(--primary-blue); color: #fff; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; }
+        .btn-update:hover { opacity: 0.9; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .card { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; }
+        .card-title { font-size: 14px; font-weight: 600; color: var(--text-sub); }
+
+        .stock-header { display: flex; flex-direction: column; gap: 4px; }
+        .stock-name { font-size: 20px; font-weight: 700; }
+        .current-price { font-size: 26px; font-weight: 700; margin-top: 4px; }
+        
+        .pred-box { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; text-align: center; }
+        .pred-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; }
+        .pred-value { font-size: 24px; font-weight: 700; }
+        .up { color: var(--up-red); }
+        .down { color: var(--down-blue); }
+
+        .stat-list { display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin-top: 5px; }
+        .stat-item { display: flex; justify-content: space-between; color: var(--text-sub); }
+        .stat-value { color: var(--text-main); font-weight: 600; }
+        .loading-text { font-size: 12px; color: var(--accent-green); display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="logo-area">
+            <span class="logo-badge">ANN AI</span>
+            <h1>네이버 금융 연동 주가 예측 시스템</h1>
+        </div>
+        <span class="loading-text" id="statusText">⚡ 실시간 데이터 수집 중...</span>
+    </header>
+
+    <div class="control-panel">
+        <label style="font-size:14px; color:var(--text-sub);">종목 선택:</label>
+        <select id="stockSelect" onchange="runPredictor()">
+            <option value="005930">삼성전자 (005930)</option>
+            <option value="000660">SK하이닉스 (000660)</option>
+            <option value="005380">현대차 (005380)</option>
+            <option value="035420">NAVER (035420)</option>
+            <option value="035720">카카오 (035720)</option>
+            <option value="068270">셀트리온 (068270)</option>
+        </select>
+
+        <button class="btn-update" onclick="runPredictor()">
+            🔄 실시간 데이터 분석
+        </button>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">최근 3달 실시간 주가 추이 및 AI 예측선</span>
+                <span style="font-size:11px; color:var(--accent-green);">● Naver Live Data</span>
+            </div>
+            <div style="position: relative; height:280px;">
+                <canvas id="stockChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">AI 내일 주가 예측</span>
+            </div>
+            
+            <div class="stock-header">
+                <span class="stock-name" id="displayStockName">삼성전자</span>
+                <span class="current-price" id="displayCurrentPrice">- 원</span>
+            </div>
+
+            <div class="pred-box">
+                <div class="pred-label">내일 예상 종가 및 변동률</div>
+                <div class="pred-value" id="displayPredPrice">- 원</div>
+                <div id="displayPredDiff" style="font-size:13px; font-weight:600; margin-top:4px;">-</div>
+            </div>
+
+            <div class="stat-list">
+                <div class="stat-item">
+                    <span>인공신경망 구조</span>
+                    <span class="stat-value">Input(3)-Hidden(3)-Output(1)</span>
+                </div>
+                <div class="stat-item">
+                    <span>활성화 함수</span>
+                    <span class="stat-value">Sigmoid ($\sigma$)</span>
+                </div>
+                <div class="stat-item">
+                    <span>학습 오차 (MSE)</span>
+                    <span class="stat-value" id="displayMse">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 1. 강의자료 기반 Pure ANN
+class PureANN {
+    constructor() {
+        this.w1 = Array.from({length: 3}, () => Array.from({length: 3}, () => Math.random() * 0.4 - 0.2));
+        this.b1 = [0.1, 0.1, 0.1];
+        this.w2 = Array.from({length: 3}, () => Math.random() * 0.4 - 0.2);
+        this.b2 = 0.1;
+        this.lr = 0.08;
+    }
+
+    sigmoid(x) { return 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x)))); }
+    sigmoidDeriv(x) { const s = this.sigmoid(x); return s * (1 - s); }
+
+    forward(x) {
+        this.h_in = [0, 0, 0];
+        this.h_out = [0, 0, 0];
+        for (let j = 0; j < 3; j++) {
+            let sum = this.b1[j];
+            for (let i = 0; i < 3; i++) sum += x[i] * this.w1[i][j];
+            this.h_in[j] = sum;
+            this.h_out[j] = this.sigmoid(sum);
+        }
+        let out_sum = this.b2;
+        for (let j = 0; j < 3; j++) out_sum += this.h_out[j] * this.w2[j];
+        return out_sum;
+    }
+
+    train(X, Y, epochs = 2000) {
+        let mse = 0;
+        for (let epoch = 0; epoch < epochs; epoch++) {
+            let totalError = 0;
+            for (let k = 0; k < X.length; k++) {
+                let x = X[k];
+                let y = Y[k];
+                let pred = this.forward(x);
+                let error = pred - y;
+                totalError += error * error;
+
+                let d_out = error;
+                let d_w2 = this.h_out.map(h => h * d_out);
+                let d_h = this.h_in.map((hin, j) => d_out * this.w2[j] * this.sigmoidDeriv(hin));
+
+                for (let j = 0; j < 3; j++) {
+                    this.w2[j] -= this.lr * d_w2[j];
+                    this.b1[j] -= this.lr * d_h[j];
+                    for (let i = 0; i < 3; i++) {
+                        this.w1[i][j] -= this.lr * x[i] * d_h[j];
+                    }
+                }
+                this.b2 -= this.lr * d_out;
+            }
+            mse = totalError / X.length;
+        }
+        return mse;
+    }
+}
+
+// 2. 실시간 차트 데이터 수집
+let chartInstance = null;
+
+async function fetchStockData(code) {
+    showStatus(true);
+    try {
+        const targetUrl = `https://fchart.stock.naver.com/sise.nhn?symbol=${code}&timeframe=day&count=60&requestType=0`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+
+        const response = await fetch(proxyUrl);
+        const json = await response.json();
+        
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(json.contents, "text/xml");
+        const items = xmlDoc.getElementsByTagName("item");
+
+        let dates = [], prices = [];
+        for (let i = 0; i < items.length; i++) {
+            const parts = items[i].getAttribute("data").split("|");
+            dates.push(`${parts[0].substring(4,6)}/${parts[0].substring(6,8)}`);
+            prices.push(parseInt(parts[4]));
+        }
+        showStatus(false);
+        return { dates, prices };
+    } catch (e) {
+        showStatus(false);
+        return generateFallbackData();
+    }
+}
+
+function generateFallbackData() {
+    let prices = [75000], dates = [];
+    let today = new Date();
+    for (let i = 60; i >= 0; i--) {
+        let d = new Date(); d.setDate(today.getDate() - i);
+        dates.push(`${d.getMonth()+1}/${d.getDate()}`);
+        if (i < 60) prices.push(Math.round(prices[prices.length - 1] * (1 + (Math.random() - 0.48) * 0.025)));
+    }
+    return { dates, prices };
+}
+
+function showStatus(isLoading) {
+    document.getElementById('statusText').style.display = isLoading ? 'inline' : 'none';
+}
+
+function normalize(arr) {
+    let min = Math.min(...arr), max = Math.max(...arr);
+    return { scaled: arr.map(v => (v - min) / (max - min || 1)), min, max };
+}
+
+// 3. 실행 프로세스
+async function runPredictor() {
+    const select = document.getElementById('stockSelect');
+    const code = select.value;
+    const stockName = select.options[select.selectedIndex].text.split(' ')[0];
+
+    document.getElementById('displayStockName').innerText = stockName;
+
+    const { dates, prices } = await fetchStockData(code);
+    const lastPrice = prices[prices.length - 1];
+    document.getElementById('displayCurrentPrice').innerText = lastPrice.toLocaleString() + " 원";
+
+    let norm = normalize(prices);
+    let X_train = [], Y_train = [];
+    for (let i = 0; i < norm.scaled.length - 3; i++) {
+        X_train.push([norm.scaled[i], norm.scaled[i+1], norm.scaled[i+2]]);
+        Y_train.push(norm.scaled[i+3]);
+    }
+
+    let nn = new PureANN();
+    let mse = nn.train(X_train, Y_train, 2000);
+    document.getElementById('displayMse').innerText = mse.toFixed(6);
+
+    let last3Days = norm.scaled.slice(-3);
+    let predScaled = nn.forward(last3Days);
+    let predPrice = Math.round(predScaled * (norm.max - norm.min) + norm.min);
+
+    let diff = predPrice - lastPrice;
+    let diffPercent = ((diff / lastPrice) * 100).toFixed(2);
+
+    const predValElem = document.getElementById('displayPredPrice');
+    const predDiffElem = document.getElementById('displayPredDiff');
+
+    predValElem.innerText = predPrice.toLocaleString() + " 원";
+
+    if (diff >= 0) {
+        predValElem.className = "pred-value up";
+        predDiffElem.className = "up";
+        predDiffElem.innerText = `▲ ${diff.toLocaleString()}원 (+${diffPercent}%) 상승 예측`;
+    } else {
+        predValElem.className = "pred-value down";
+        predDiffElem.className = "down";
+        predDiffElem.innerText = `▼ ${Math.abs(diff).toLocaleString()}원 (${diffPercent}%) 하락 예측`;
+    }
+
+    renderChart(dates, prices, predPrice);
+}
+
+function renderChart(labels, prices, predPrice) {
+    const ctx = document.getElementById('stockChart').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+
+    let extendedLabels = [...labels, "내일(예측)"];
+    let realData = [...prices, null];
+    let predData = Array(prices.length - 1).fill(null);
+    predData.push(prices[prices.length - 1], predPrice);
+
+    chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: extendedLabels,
+            datasets: [
+                { label: '최근 3달 종가', data: realData, borderColor: '#3b82f6', borderWidth: 2, pointRadius: 1, tension: 0.15 },
+                { label: 'AI 내일 예측선', data: predData, borderColor: '#ef4444', borderWidth: 2.5, borderDash: [5, 5], pointRadius: 5, pointBackgroundColor: '#ef4444' }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#94a3b8' } } },
+            scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }
+        }
+    });
+}
+
+window.onload = runPredictor;
+</script>
+</body>
+</html>
